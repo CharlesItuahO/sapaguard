@@ -1,0 +1,2034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SapaGuard — Zero-Based Budgeting &amp; Envelope Cash Flow Planner</title>
+  <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js for crisp visual cash flow analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            display: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              950: '#042f2e',
+              900: '#064e3b',
+              800: '#065f46',
+              700: '#047857',
+              600: '#059669',
+              500: '#10b981',
+              100: '#d1fae5',
+              50: '#ecfdf5',
+            },
+            slatex: {
+              950: '#0b0f17',
+              900: '#111827',
+              850: '#18212f',
+              800: '#1f2937',
+              700: '#374151',
+            },
+            paper: '#f8faf8',
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background-color: #f4f6f4;
+      color: #111827;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3, .font-display {
+      font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+    }
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+    /* Custom subtle scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    /* Number input spinner removal for clean inline editing */
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type="number"] {
+      -moz-appearance: textfield;
+    }
+    @keyframes pulseSoft {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.015); }
+    }
+    .animate-pulse-soft {
+      animation: pulseSoft 2.4s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-30 bg-slatex-900 text-white border-b border-slate-800 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
+      <!-- Brand Identity -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-700 flex items-center justify-center shadow-lg shadow-emerald-950/50 shrink-0">
+          <!-- Shield + Naira SVG Logo -->
+          <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M9 15V9l6 6V9"/>
+            <path d="M7.5 11.2h9"/>
+            <path d="M7.5 13.2h9"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-display font-extrabold text-lg sm:text-xl tracking-tight text-white">SapaGuard</span>
+            <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              Zero-Based Engine
+            </span>
+          </div>
+          <p class="text-[11px] sm:text-xs text-slate-400 leading-tight">Every Naira has a job. Zero Sapa.</p>
+        </div>
+      </div>
+
+      <!-- Center / Right Controls -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Month Selector -->
+        <div class="flex items-center bg-slate-800/90 border border-slate-700 rounded-xl p-1">
+          <button id="prevMonthBtn" title="Previous Month" class="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+          </button>
+          <select id="monthSelect" aria-label="Select Budget Month" class="bg-transparent text-xs sm:text-sm font-semibold text-white px-2 py-1 focus:outline-none cursor-pointer">
+            <option value="2026-10" class="bg-slate-900">October 2026</option>
+            <option value="2026-11" class="bg-slate-900" selected>November 2026</option>
+            <option value="2026-12" class="bg-slate-900">December 2026</option>
+          </select>
+          <button id="nextMonthBtn" title="Next Month" class="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+
+        <!-- Currency Toggle (NGN / USD) -->
+        <div class="flex items-center bg-slate-800/90 border border-slate-700 rounded-xl p-1" title="Switch Display Currency">
+          <button id="currNgnBtn" class="px-2.5 py-1 rounded-lg text-xs font-bold transition bg-emerald-600 text-white shadow-sm">
+            ₦ NGN
+          </button>
+          <button id="currUsdBtn" class="px-2.5 py-1 rounded-lg text-xs font-bold transition text-slate-300 hover:text-white">
+            $ USD
+          </button>
+        </div>
+
+        <!-- Quick Log Expense Primary CTA -->
+        <button id="openExpenseModalTop" class="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs sm:text-sm px-3.5 py-2 rounded-xl shadow-md shadow-emerald-950/40 transition active:scale-95">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+          <span class="hidden md:inline">Log Expense</span>
+          <span class="md:hidden">Spend</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- 1. READY TO ASSIGN / ZERO-BASED HERO BANNER -->
+    <section id="zeroBasedBanner" class="rounded-2xl p-5 sm:p-6 shadow-sm border transition-all duration-300 bg-white border-slate-200">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+        <!-- Left Status Block -->
+        <div class="flex items-start sm:items-center gap-4">
+          <div id="statusIconWrap" class="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 bg-emerald-100 text-emerald-700">
+            <!-- Dynamic SVG Icon injected by JS -->
+          </div>
+          <div>
+            <div class="flex flex-wrap items-center gap-2 mb-1">
+              <span id="statusBadge" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800">
+                Ready to Assign
+              </span>
+              <span id="currencyRateHint" class="hidden text-xs text-slate-500 font-medium">
+                FX Reference: $1 = ₦1,600
+              </span>
+            </div>
+            <div class="flex items-baseline gap-3 flex-wrap">
+              <h1 id="readyToAssignAmount" class="font-display font-extrabold text-3xl sm:text-4xl tracking-tight tabular-nums text-slate-900">
+                ₦0
+              </h1>
+              <p id="statusHeadline" class="text-sm sm:text-base font-medium text-slate-600">
+                Calculating your cash flow...
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Quick KPIs & Auto-Balance Action -->
+        <div class="flex flex-wrap items-center gap-3 sm:gap-4 pt-3 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+          <div class="bg-slate-50 border border-slate-200/80 rounded-xl px-3.5 py-2.5 min-w-[125px]">
+            <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Total Cash In</div>
+            <div id="kpiTotalIncome" class="font-display font-bold text-base sm:text-lg tabular-nums text-slate-900">₦0</div>
+          </div>
+          <div class="bg-slate-50 border border-slate-200/80 rounded-xl px-3.5 py-2.5 min-w-[125px]">
+            <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Total Assigned</div>
+            <div id="kpiTotalAssigned" class="font-display font-bold text-base sm:text-lg tabular-nums text-emerald-700">₦0</div>
+          </div>
+          <div class="bg-slate-50 border border-slate-200/80 rounded-xl px-3.5 py-2.5 min-w-[125px]">
+            <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Total Spent</div>
+            <div id="kpiTotalSpent" class="font-display font-bold text-base sm:text-lg tabular-nums text-slate-800">₦0</div>
+          </div>
+
+          <!-- Auto-Balance / Sweep Remainder Action -->
+          <div id="sweepActionWrap" class="flex items-center gap-2">
+            <button id="sweepRemainderBtn" class="inline-flex items-center gap-2 bg-slatex-900 hover:bg-slate-800 text-white font-semibold text-xs sm:text-sm px-4 py-3 rounded-xl shadow-sm transition active:scale-95">
+              <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              <span>Sweep Remainder</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main 12-Column Workspace -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+      <!-- LEFT / CENTER COLUMN (8 Cols): Income Streams + Envelope Groups -->
+      <div class="lg:col-span-8 space-y-6">
+
+        <!-- 2. MONTHLY INCOME & CASH AVAILABLE CARD -->
+        <section class="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-slate-50/60">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </div>
+              <div>
+                <h2 class="font-display font-bold text-base text-slate-900">Monthly Income &amp; Cash Available</h2>
+                <p class="text-xs text-slate-500">All inflows funding your envelopes for <span id="incomeMonthLabel" class="font-semibold text-slate-700">November 2026</span></p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button id="copyPrevMonthBtn" class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-emerald-700 bg-white hover:bg-emerald-50 border border-slate-200 px-3 py-1.5 rounded-xl transition">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                Copy Prev Month Plan
+              </button>
+              <button id="openAddIncomeBtn" class="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-xl transition">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                Add Income
+              </button>
+            </div>
+          </div>
+
+          <div id="incomeListContainer" class="divide-y divide-slate-100">
+            <!-- Income rows rendered dynamically -->
+          </div>
+        </section>
+
+        <!-- 3. INTERACTIVE ENVELOPE PLANNER HEADER & TOOLBAR -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 class="font-display font-bold text-lg sm:text-xl text-slate-900">Digital Cash Envelopes</h2>
+            <p class="text-xs sm:text-sm text-slate-500">Assign every Naira before you spend. Click any assigned figure to edit directly.</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button id="openMoveMoneyBtn" class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl shadow-xs transition">
+              <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+              Move Money
+            </button>
+            <button id="openAddCategoryBtn" class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl shadow-xs transition">
+              <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+              New Category
+            </button>
+            <button id="openAddEnvelopeBtn" class="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 px-3.5 py-2 rounded-xl shadow-xs transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+              New Envelope
+            </button>
+          </div>
+        </div>
+
+        <!-- Envelope Categories Container -->
+        <div id="envelopeCategoriesContainer" class="space-y-5">
+          <!-- Category cards & envelopes rendered dynamically -->
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN (4 Cols): Sapa Risk Meter, Cash Flow Analytics & Recent Transactions -->
+      <div class="lg:col-span-4 space-y-6">
+
+        <!-- 4. SAPA RISK METER & FINANCIAL RUNWAY -->
+        <section class="bg-slatex-900 text-white rounded-2xl p-5 shadow-md border border-slate-800 relative overflow-hidden">
+          <div class="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-emerald-500/10 blur-2xl pointer-events-none"></div>
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+              <h3 class="font-display font-bold text-sm uppercase tracking-wider text-slate-200">Sapa Risk Meter</h3>
+            </div>
+            <span id="sapaRiskBadge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              Low Risk
+            </span>
+          </div>
+
+          <!-- Gauge Bar -->
+          <div class="mb-3">
+            <div class="flex justify-between items-baseline mb-1.5">
+              <span id="sapaScoreLabel" class="font-display font-extrabold text-2xl tabular-nums text-white">88 / 100</span>
+              <span id="runwayLabel" class="text-xs font-medium text-emerald-300 tabular-nums">Runway: 1.8 Months</span>
+            </div>
+            <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden p-0.5">
+              <div id="sapaMeterBar" class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500" style="width: 88%"></div>
+            </div>
+          </div>
+
+          <p id="sapaAdviceText" class="text-xs text-slate-300 leading-relaxed mb-4">
+            Your fixed essentials are 100% funded and your Anti-Sapa Emergency buffer is growing. Keep lifestyle spending within envelope limits!
+          </p>
+
+          <!-- Mini Breakdown Pills -->
+          <div class="grid grid-cols-2 gap-2.5 pt-3 border-t border-slate-800/90 text-xs">
+            <div class="bg-slate-800/70 rounded-xl p-2.5">
+              <div class="text-slate-400 text-[11px]">Essentials Ratio</div>
+              <div id="essentialsRatioVal" class="font-bold text-white tabular-nums mt-0.5">0% of Income</div>
+            </div>
+            <div class="bg-slate-800/70 rounded-xl p-2.5">
+              <div class="text-slate-400 text-[11px]">Savings &amp; Goals</div>
+              <div id="savingsRatioVal" class="font-bold text-emerald-400 tabular-nums mt-0.5">0% of Income</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. VISUAL CASH FLOW ANALYTICS -->
+        <section class="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-5">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="font-display font-bold text-base text-slate-900">Cash Flow Breakdown</h3>
+              <p class="text-xs text-slate-500">Allocation &amp; utilization by category</p>
+            </div>
+            <div class="inline-flex rounded-xl bg-slate-100 p-1 text-xs font-semibold">
+              <button id="chartTabDonut" class="px-2.5 py-1 rounded-lg bg-white text-slate-900 shadow-xs transition">Allocation</button>
+              <button id="chartTabBar" class="px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition">Assigned vs Spent</button>
+            </div>
+          </div>
+
+          <div class="relative h-56 w-full flex items-center justify-center">
+            <canvas id="cashFlowChart"></canvas>
+          </div>
+
+          <div id="chartLegendSummary" class="mt-4 pt-3 border-t border-slate-100 space-y-2 text-xs">
+            <!-- Category summary rows injected by JS -->
+          </div>
+        </section>
+
+        <!-- 6. RECENT TRANSACTIONS LEDGER -->
+        <section class="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
+          <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-2 bg-slate-50/60">
+            <div>
+              <h3 class="font-display font-bold text-base text-slate-900">Recent Activity</h3>
+              <p class="text-xs text-slate-500">Every Naira spent updates its envelope</p>
+            </div>
+            <button id="openExpenseModalSide" class="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-xl transition">
+              + Log Spend
+            </button>
+          </div>
+
+          <!-- Filter Bar -->
+          <div class="px-4 py-2.5 bg-slate-50/40 border-b border-slate-100 flex items-center gap-2">
+            <select id="txFilterEnvelope" aria-label="Filter transactions by envelope" class="w-full text-xs font-medium bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-700 focus:outline-none focus:border-emerald-500">
+              <option value="ALL">All Envelopes</option>
+            </select>
+          </div>
+
+          <div id="transactionListContainer" class="divide-y divide-slate-100 max-h-[380px] overflow-y-auto">
+            <!-- Transaction items injected by JS -->
+          </div>
+        </section>
+
+        <!-- 7. DATA TOOLS: EXPORT & RESET -->
+        <section class="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <button id="exportCsvBtn" class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 px-3 py-2 rounded-xl transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              Export CSV
+            </button>
+            <button id="exportJsonBtn" class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 px-3 py-2 rounded-xl transition">
+              JSON
+            </button>
+          </div>
+          <button id="resetDemoBtn" class="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-3 py-2 rounded-xl transition">
+            Reset Demo Data
+          </button>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-slate-200/80 mt-10 py-5">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+      <div class="flex items-center gap-2">
+        <span class="font-display font-bold text-slate-800">SapaGuard</span>
+        <span>•</span>
+        <span>Zero-Based Budgeting &amp; Envelope Cash Flow Planner</span>
+      </div>
+      <div>
+        Auto-saved locally in your browser • Built for intentional cash flow
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==================== MODALS ==================== -->
+
+  <!-- Modal Backdrop -->
+  <div id="modalBackdrop" class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-40 hidden flex items-center justify-center p-4">
+
+    <!-- 1. LOG EXPENSE MODAL -->
+    <div id="expenseModal" class="modal-panel hidden bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-4 bg-slatex-900 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">₦</span>
+          <h3 class="font-display font-bold text-base">Log Envelope Expense</h3>
+        </div>
+        <button data-close-modal class="text-slate-400 hover:text-white p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form id="expenseForm" class="p-5 space-y-4">
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Select Envelope</label>
+          <select id="expEnvelopeSelect" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:border-emerald-600">
+          </select>
+          <p id="expEnvelopeBalanceHint" class="text-xs text-emerald-700 font-medium mt-1">Available: ₦0</p>
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Amount (<span class="modalCurrSymbol">₦</span>)</label>
+          <input id="expAmountInput" type="number" step="any" min="1" required placeholder="e.g. 12500" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base font-bold tabular-nums text-slate-900 focus:outline-none focus:border-emerald-600" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Merchant / Note</label>
+          <input id="expNoteInput" type="text" required placeholder="e.g. Shoprite Groceries, Bolt Ride, Fuel..." class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-emerald-600" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Date</label>
+          <input id="expDateInput" type="date" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-emerald-600" />
+        </div>
+        <div class="pt-2 flex items-center justify-end gap-2">
+          <button type="button" data-close-modal class="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">Save Transaction</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 2. MOVE MONEY (ENVELOPE TRANSFER) MODAL -->
+    <div id="moveMoneyModal" class="modal-panel hidden bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-4 bg-slatex-900 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+          <h3 class="font-display font-bold text-base">Move Money Between Envelopes</h3>
+        </div>
+        <button data-close-modal class="text-slate-400 hover:text-white p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form id="moveMoneyForm" class="p-5 space-y-4">
+        <p class="text-xs text-slate-500 bg-amber-50 border border-amber-200/80 text-amber-900 p-3 rounded-xl">
+          Cover overspending or reprioritize funds without breaking your Zero-Based balance!
+        </p>
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">From Envelope (Source)</label>
+          <select id="moveFromSelect" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:border-emerald-600"></select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">To Envelope (Destination)</label>
+          <select id="moveToSelect" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:border-emerald-600"></select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Amount to Transfer (<span class="modalCurrSymbol">₦</span>)</label>
+          <input id="moveAmountInput" type="number" step="any" min="1" required placeholder="e.g. 15000" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base font-bold tabular-nums text-slate-900 focus:outline-none focus:border-emerald-600" />
+        </div>
+        <div class="pt-2 flex items-center justify-end gap-2">
+          <button type="button" data-close-modal class="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-sm">Transfer Funds</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 3. ADD / EDIT ENVELOPE MODAL -->
+    <div id="envelopeModal" class="modal-panel hidden bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-4 bg-slatex-900 text-white flex items-center justify-between">
+        <h3 id="envelopeModalTitle" class="font-display font-bold text-base">Create New Envelope</h3>
+        <button data-close-modal class="text-slate-400 hover:text-white p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form id="envelopeForm" class="p-5 space-y-4">
+        <input type="hidden" id="envEditId" />
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Category Group</label>
+          <select id="envCategorySelect" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:border-emerald-600"></select>
+        </div>
+        <div class="grid grid-cols-4 gap-3">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Icon</label>
+            <select id="envIconSelect" class="w-full rounded-xl border border-slate-300 px-2.5 py-2.5 text-lg text-center focus:outline-none focus:border-emerald-600">
+              <option value="🏠">🏠</option>
+              <option value="⚡">⚡</option>
+              <option value="⛽">⛽</option>
+              <option value="🍲">🍲</option>
+              <option value="🛍️">🛍️</option>
+              <option value="🎉">🎉</option>
+              <option value="🤝">🤝</option>
+              <option value="🛡️">🛡️</option>
+              <option value="✈️">✈️</option>
+              <option value="📱">📱</option>
+              <option value="🏥">🏥</option>
+              <option value="📚">📚</option>
+              <option value="💼">💼</option>
+            </select>
+          </div>
+          <div class="col-span-3">
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Envelope Name</label>
+            <input id="envNameInput" type="text" required placeholder="e.g. Fuel & Generator, Suya & Hangouts" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-emerald-600" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Priority Tag</label>
+            <select id="envPrioritySelect" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:border-emerald-600">
+              <option value="Essential">Essential</option>
+              <option value="Flexible">Flexible</option>
+              <option value="Goal">Goal</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Monthly Target (<span class="modalCurrSymbol">₦</span>)</label>
+            <input id="envTargetInput" type="number" step="any" min="0" required placeholder="50000" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-bold tabular-nums text-slate-900 focus:outline-none focus:border-emerald-600" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Initial Assigned Amount (<span class="modalCurrSymbol">₦</span>)</label>
+          <input id="envAssignedInput" type="number" step="any" min="0" required placeholder="0" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-bold tabular-nums text-slate-900 focus:outline-none focus:border-emerald-600" />
+        </div>
+        <div class="pt-2 flex items-center justify-end gap-2">
+          <button type="button" data-close-modal class="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">Save Envelope</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 4. ADD CATEGORY MODAL -->
+    <div id="categoryModal" class="modal-panel hidden bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-4 bg-slatex-900 text-white flex items-center justify-between">
+        <h3 class="font-display font-bold text-base">New Envelope Category</h3>
+        <button data-close-modal class="text-slate-400 hover:text-white p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form id="categoryForm" class="p-5 space-y-4">
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Category Group Name</label>
+          <input id="catNameInput" type="text" required placeholder="e.g. Side Hustle Ops, Health & Fitness" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-emerald-600" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Category Role</label>
+          <select id="catTypeSelect" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-emerald-600">
+            <option value="essentials">Fixed Essentials &amp; Bills</option>
+            <option value="lifestyle">Lifestyle &amp; Flexible Spending</option>
+            <option value="obligations">Family &amp; Social Obligations</option>
+            <option value="savings">Savings &amp; Future Investments</option>
+          </select>
+        </div>
+        <div class="pt-2 flex items-center justify-end gap-2">
+          <button type="button" data-close-modal class="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">Create Category</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 5. ADD INCOME STREAM MODAL -->
+    <div id="incomeModal" class="modal-panel hidden bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-4 bg-slatex-900 text-white flex items-center justify-between">
+        <h3 class="font-display font-bold text-base">Add Income Stream</h3>
+        <button data-close-modal class="text-slate-400 hover:text-white p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form id="incomeForm" class="p-5 space-y-4">
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Income Source Name</label>
+          <input id="incNameInput" type="text" required placeholder="e.g. Tech Salary, Upwork Gig, Dividend" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-emerald-600" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Amount (<span class="modalCurrSymbol">₦</span>)</label>
+          <input id="incAmountInput" type="number" step="any" min="1" required placeholder="e.g. 250000" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base font-bold tabular-nums text-slate-900 focus:outline-none focus:border-emerald-600" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Tag / Type</label>
+          <select id="incTagInput" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-emerald-600">
+            <option value="Salary">Primary Salary</option>
+            <option value="Side Hustle">Side Hustle / Freelance</option>
+            <option value="Carryover">Previous Month Carryover</option>
+            <option value="Bonus">Bonus / Gift</option>
+          </select>
+        </div>
+        <div class="pt-2 flex items-center justify-end gap-2">
+          <button type="button" data-close-modal class="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">Add Cash Inflow</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 6. SWEEP REMAINDER MODAL -->
+    <div id="sweepModal" class="modal-panel hidden bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-4 bg-slatex-900 text-white flex items-center justify-between">
+        <h3 class="font-display font-bold text-base">Sweep Unallocated Cash</h3>
+        <button data-close-modal class="text-slate-400 hover:text-white p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form id="sweepForm" class="p-5 space-y-4">
+        <p class="text-xs text-slate-600 leading-relaxed">
+          Assign your remaining <strong id="sweepAmountText" class="text-emerald-700 font-bold">₦0</strong> directly into a target envelope to hit <strong>Zero-Based perfection</strong>!
+        </p>
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Destination Envelope</label>
+          <select id="sweepEnvelopeSelect" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:outline-none focus:border-emerald-600"></select>
+        </div>
+        <div class="pt-2 flex items-center justify-end gap-2">
+          <button type="button" data-close-modal class="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Cancel</button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">Assign &amp; Balance</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 7. CONFIRM RESET DEMO DATA MODAL -->
+    <div id="resetConfirmModal" class="modal-panel hidden bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-4 bg-rose-600 text-white flex items-center justify-between">
+        <h3 class="font-display font-bold text-base">Reset SapaGuard Demo Data?</h3>
+        <button data-close-modal class="text-rose-100 hover:text-white p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="p-5 space-y-4">
+        <p class="text-sm text-slate-600">
+          This will restore the default November 2026 Nigerian Naira cash flow plan, envelopes, and sample transactions. Any custom edits will be overwritten.
+        </p>
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button type="button" data-close-modal class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Keep My Data</button>
+          <button id="confirmResetBtn" type="button" class="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-sm">Yes, Reset Demo</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== APPLICATION LOGIC ==================== -->
+  <script>
+    (function () {
+      'use strict';
+
+      // Constants & Storage Keys
+      const STORAGE_KEY = 'sapaguard_budget_v1';
+      const FX_RATE_NGN_PER_USD = 1600; // Reference conversion rate when toggling USD display
+
+      const MONTH_LABELS = {
+        '2026-10': 'October 2026',
+        '2026-11': 'November 2026',
+        '2026-12': 'December 2026'
+      };
+
+      const MONTH_ORDER = ['2026-10', '2026-11', '2026-12'];
+
+      // Default Realistic Nigerian Naira Dataset (Stored internally in NGN)
+      function getDefaultState() {
+        return {
+          currency: 'NGN', // 'NGN' or 'USD'
+          currentMonth: '2026-11',
+          chartMode: 'donut', // 'donut' or 'bar'
+          months: {
+            '2026-10': {
+              incomes: [
+                { id: 'inc-oct-1', name: 'Primary Tech / Corporate Salary', amount: 650000, tag: 'Salary' },
+                { id: 'inc-oct-2', name: 'Weekend UI/Consulting Gig', amount: 150000, tag: 'Side Hustle' }
+              ],
+              categories: [
+                { id: 'cat-oct-1', name: 'Fixed Essentials & Bills', type: 'essentials' },
+                { id: 'cat-oct-2', name: 'Daily Living & Chop Life', type: 'lifestyle' },
+                { id: 'cat-oct-3', name: 'Black Tax & Family Support', type: 'obligations' },
+                { id: 'cat-oct-4', name: 'Savings & Japa / Future Goals', type: 'savings' }
+              ],
+              envelopes: [
+                { id: 'env-oct-1', categoryId: 'cat-oct-1', icon: '🏠', name: 'Rent Sinking Fund (Monthly)', priority: 'Essential', target: 150000, assigned: 150000 },
+                { id: 'env-oct-2', categoryId: 'cat-oct-1', icon: '⚡', name: 'NEPA / Band A Power & Inverter', priority: 'Essential', target: 55000, assigned: 55000 },
+                { id: 'env-oct-3', categoryId: 'cat-oct-1', icon: '📱', name: 'Fiber Wi-Fi & Mobile Data', priority: 'Essential', target: 30000, assigned: 30000 },
+                { id: 'env-oct-4', categoryId: 'cat-oct-2', icon: '🍲', name: 'Groceries & Market Runs', priority: 'Essential', target: 110000, assigned: 110000 },
+                { id: 'env-oct-5', categoryId: 'cat-oct-2', icon: '⛽', name: 'Fuel, Uber & Commute', priority: 'Flexible', target: 85000, assigned: 85000 },
+                { id: 'env-oct-6', categoryId: 'cat-oct-2', icon: '🎉', name: 'Chop Life, Suya & Weekend Outings', priority: 'Flexible', target: 60000, assigned: 60000 },
+                { id: 'env-oct-7', categoryId: 'cat-oct-3', icon: '🤝', name: 'Parents & Family Monthly Support', priority: 'Essential', target: 75000, assigned: 75000 },
+                { id: 'env-oct-8', categoryId: 'cat-oct-3', icon: '🎁', name: 'Urgent 2k & Aso-Ebi Buffer', priority: 'Flexible', target: 25000, assigned: 25000 },
+                { id: 'env-oct-9', categoryId: 'cat-oct-4', icon: '🛡️', name: 'Anti-Sapa Emergency Fund', priority: 'Goal', target: 120000, assigned: 120000 },
+                { id: 'env-oct-10', categoryId: 'cat-oct-4', icon: '✈️', name: 'Japa / Dollar Asset Vault', priority: 'Goal', target: 90000, assigned: 90000 }
+              ],
+              transactions: [
+                { id: 'tx-oct-1', envelopeId: 'env-oct-1', note: 'PiggyVest House Rent Target', amount: 150000, date: '2026-10-03' },
+                { id: 'tx-oct-2', envelopeId: 'env-oct-2', note: 'IKEDC Prepaid Meter Token', amount: 52000, date: '2026-10-06' },
+                { id: 'tx-oct-3', envelopeId: 'env-oct-4', note: 'Mile 12 & Supermarket Stockup', amount: 104500, date: '2026-10-12' },
+                { id: 'tx-oct-4', envelopeId: 'env-oct-5', note: 'TotalEnergies Fuel + Bolt', amount: 81000, date: '2026-10-19' },
+                { id: 'tx-oct-5', envelopeId: 'env-oct-7', note: 'Transfer to Mum & Dad', amount: 75000, date: '2026-10-25' },
+                { id: 'tx-oct-6', envelopeId: 'env-oct-9', note: 'Cowrywise Emergency Lock', amount: 120000, date: '2026-10-28' }
+              ]
+            },
+            '2026-11': {
+              incomes: [
+                { id: 'inc-nov-1', name: 'Primary Salary (Net Take-Home)', amount: 680000, tag: 'Salary' },
+                { id: 'inc-nov-2', name: 'Product Design Side Hustle', amount: 185000, tag: 'Side Hustle' },
+                { id: 'inc-nov-3', name: 'October Unspent Carryover', amount: 35000, tag: 'Carryover' }
+              ],
+              categories: [
+                { id: 'cat-nov-1', name: 'Fixed Essentials & Bills', type: 'essentials' },
+                { id: 'cat-nov-2', name: 'Daily Living & Chop Life', type: 'lifestyle' },
+                { id: 'cat-nov-3', name: 'Black Tax & Family Support', type: 'obligations' },
+                { id: 'cat-nov-4', name: 'Savings & Japa / Future Goals', type: 'savings' }
+              ],
+              envelopes: [
+                { id: 'env-nov-1', categoryId: 'cat-nov-1', icon: '🏠', name: 'Rent Sinking Fund (Lagos Flat)', priority: 'Essential', target: 160000, assigned: 160000 },
+                { id: 'env-nov-2', categoryId: 'cat-nov-1', icon: '⚡', name: 'NEPA Band A & Inverter Fuel', priority: 'Essential', target: 65000, assigned: 65000 },
+                { id: 'env-nov-3', categoryId: 'cat-nov-1', icon: '📱', name: 'Starlink / Fiber & Airtime', priority: 'Essential', target: 35000, assigned: 35000 },
+                { id: 'env-nov-4', categoryId: 'cat-nov-2', icon: '🍲', name: 'Groceries, Foodstuff & Provisions', priority: 'Essential', target: 120000, assigned: 120000 },
+                { id: 'env-nov-5', categoryId: 'cat-nov-2', icon: '⛽', name: 'Fuel, Uber & Lekki Toll Commute', priority: 'Flexible', target: 95000, assigned: 95000 },
+                { id: 'env-nov-6', categoryId: 'cat-nov-2', icon: '🎉', name: 'Chop Life, Shawarma & Weekend Hangouts', priority: 'Flexible', target: 65000, assigned: 55000 },
+                { id: 'env-nov-7', categoryId: 'cat-nov-3', icon: '🤝', name: 'Parents & Siblings Upkeep', priority: 'Essential', target: 80000, assigned: 80000 },
+                { id: 'env-nov-8', categoryId: 'cat-nov-3', icon: '🎁', name: 'Urgent 2k, Weddings & Black Tax', priority: 'Flexible', target: 30000, assigned: 30000 },
+                { id: 'env-nov-9', categoryId: 'cat-nov-4', icon: '🛡️', name: 'Anti-Sapa Emergency Fund', priority: 'Goal', target: 140000, assigned: 135000 },
+                { id: 'env-nov-10', categoryId: 'cat-nov-4', icon: '✈️', name: 'Japa / USD ETF Investment', priority: 'Goal', target: 100000, assigned: 90000 }
+              ],
+              transactions: [
+                { id: 'tx-nov-1', envelopeId: 'env-nov-1', note: 'Monthly Rent Vault Auto-Save', amount: 160000, date: '2026-11-02' },
+                { id: 'tx-nov-2', envelopeId: 'env-nov-2', note: 'EKEDC Prepaid Token (Band A)', amount: 45000, date: '2026-11-04' },
+                { id: 'tx-nov-3', envelopeId: 'env-nov-3', note: 'Spectranet Unlimited + MTN Data', amount: 32500, date: '2026-11-05' },
+                { id: 'tx-nov-4', envelopeId: 'env-nov-4', note: 'Bokku Mart & Local Market Foodstuff', amount: 78500, date: '2026-11-09' },
+                { id: 'tx-nov-5', envelopeId: 'env-nov-5', note: 'NNPC Fuel Refill + Bolt Rides', amount: 64000, date: '2026-11-12' },
+                { id: 'tx-nov-6', envelopeId: 'env-nov-7', note: 'Mum & Dad Monthly Allowance', amount: 80000, date: '2026-11-15' },
+                { id: 'tx-nov-7', envelopeId: 'env-nov-6', note: 'Friday Grill, Suya & Cinema Night', amount: 61500, date: '2026-11-18' },
+                { id: 'tx-nov-8', envelopeId: 'env-nov-8', note: 'Cousin Convocation + Urgent 2k', amount: 18000, date: '2026-11-21' },
+                { id: 'tx-nov-9', envelopeId: 'env-nov-9', note: 'Emergency Treasury Bills Top-Up', amount: 100000, date: '2026-11-23' }
+              ]
+            },
+            '2026-12': {
+              incomes: [
+                { id: 'inc-dec-1', name: 'Primary Salary + 13th Month Bonus', amount: 920000, tag: 'Salary' }
+              ],
+              categories: [
+                { id: 'cat-dec-1', name: 'Fixed Essentials & Bills', type: 'essentials' },
+                { id: 'cat-dec-2', name: 'Detty December & Daily Living', type: 'lifestyle' },
+                { id: 'cat-dec-3', name: 'Black Tax & Holiday Gifting', type: 'obligations' },
+                { id: 'cat-dec-4', name: 'Savings & Japa / Future Goals', type: 'savings' }
+              ],
+              envelopes: [
+                { id: 'env-dec-1', categoryId: 'cat-dec-1', icon: '🏠', name: 'Rent Sinking Fund', priority: 'Essential', target: 160000, assigned: 160000 },
+                { id: 'env-dec-2', categoryId: 'cat-dec-1', icon: '⚡', name: 'Power & Internet Bills', priority: 'Essential', target: 100000, assigned: 100000 },
+                { id: 'env-dec-3', categoryId: 'cat-dec-2', icon: '🍲', name: 'December Groceries & Hosting', priority: 'Essential', target: 150000, assigned: 140000 },
+                { id: 'env-dec-4', categoryId: 'cat-dec-2', icon: '🎉', name: 'Detty December Concerts & Outings', priority: 'Flexible', target: 120000, assigned: 100000 },
+                { id: 'env-dec-5', categoryId: 'cat-dec-3', icon: '🤝', name: 'Christmas Hampers & Family Support', priority: 'Flexible', target: 130000, assigned: 120000 },
+                { id: 'env-dec-6', categoryId: 'cat-dec-4', icon: '🛡️', name: 'Anti-Sapa January Buffer', priority: 'Goal', target: 200000, assigned: 180000 }
+              ],
+              transactions: []
+            }
+          }
+        };
+      }
+
+      // Load or Initialize State
+      let state = loadState();
+      let cashFlowChartInstance = null;
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return getDefaultState();
+          const parsed = JSON.parse(raw);
+          if (!parsed || !parsed.months || !parsed.currentMonth) return getDefaultState();
+          return parsed;
+        } catch (err) {
+          console.error('Failed to read SapaGuard state:', err);
+          return getDefaultState();
+        }
+      }
+
+      function saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (err) {
+          console.error('Failed to persist SapaGuard state:', err);
+        }
+      }
+
+      // Currency Conversion & Formatting Helpers
+      function toDisplayValue(ngnAmount) {
+        if (state.currency === 'USD') {
+          return ngnAmount / FX_RATE_NGN_PER_USD;
+        }
+        return ngnAmount;
+      }
+
+      function fromDisplayValue(displayAmount) {
+        const num = parseFloat(displayAmount) || 0;
+        if (state.currency === 'USD') {
+          return Math.round(num * FX_RATE_NGN_PER_USD);
+        }
+        return Math.round(num);
+      }
+
+      function formatCurrency(ngnAmount, showSign = false) {
+        const isNeg = ngnAmount < 0;
+        const absVal = Math.abs(toDisplayValue(ngnAmount));
+        const symbol = state.currency === 'USD' ? '$' : '₦';
+        const formatted = state.currency === 'USD'
+          ? absVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          : Math.round(absVal).toLocaleString('en-NG');
+
+        if (isNeg) return `-${symbol}${formatted}`;
+        if (showSign && ngnAmount > 0) return `+${symbol}${formatted}`;
+        return `${symbol}${formatted}`;
+      }
+
+      function getCurrentMonthData() {
+        return state.months[state.currentMonth];
+      }
+
+      // Compute Spent for a specific envelope
+      function getEnvelopeSpent(monthData, envelopeId) {
+        return monthData.transactions
+          .filter(t => t.envelopeId === envelopeId)
+          .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+      }
+
+      // Compute Aggregate Totals
+      function computeSummary(monthData) {
+        const totalIncome = monthData.incomes.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+        const totalAssigned = monthData.envelopes.reduce((s, e) => s + (Number(e.assigned) || 0), 0);
+        const totalSpent = monthData.transactions.reduce((s, t) => s + (Number(t.amount) || 0), 0);
+        const readyToAssign = totalIncome - totalAssigned;
+        return { totalIncome, totalAssigned, totalSpent, readyToAssign };
+      }
+
+      // Toast Notification Utility
+      function showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        const styles = {
+          success: 'bg-slatex-900 text-white border-emerald-500/40',
+          warning: 'bg-amber-950 text-amber-100 border-amber-500/40',
+          danger: 'bg-rose-950 text-rose-100 border-rose-500/40'
+        };
+        const dotColors = {
+          success: 'bg-emerald-400',
+          warning: 'bg-amber-400',
+          danger: 'bg-rose-400'
+        };
+        toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl border shadow-xl text-xs sm:text-sm font-medium transition-all duration-300 transform translate-y-2 opacity-0 ${styles[type] || styles.success}`;
+        toast.innerHTML = `
+          <span class="w-2.5 h-2.5 rounded-full shrink-0 ${dotColors[type] || dotColors.success}"></span>
+          <span class="flex-1">${escapeHtml(message)}</span>
+        `;
+        container.appendChild(toast);
+        requestAnimationFrame(() => {
+          toast.classList.remove('translate-y-2', 'opacity-0');
+        });
+        setTimeout(() => {
+          toast.classList.add('opacity-0', 'translate-y-2');
+          setTimeout(() => toast.remove(), 300);
+        }, 3200);
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      // ==================== RENDERING PIPELINE ====================
+
+      function renderAll() {
+        const monthData = getCurrentMonthData();
+        const summary = computeSummary(monthData);
+
+        updateHeaderControls();
+        renderZeroBasedBanner(summary);
+        renderIncomeSection(monthData);
+        renderEnvelopesSection(monthData);
+        renderSapaRiskMeter(monthData, summary);
+        renderCashFlowChart(monthData);
+        renderTransactionsSection(monthData);
+        saveState();
+      }
+
+      function updateHeaderControls() {
+        document.getElementById('monthSelect').value = state.currentMonth;
+        document.getElementById('incomeMonthLabel').textContent = MONTH_LABELS[state.currentMonth] || state.currentMonth;
+
+        const ngnBtn = document.getElementById('currNgnBtn');
+        const usdBtn = document.getElementById('currUsdBtn');
+        const rateHint = document.getElementById('currencyRateHint');
+
+        if (state.currency === 'NGN') {
+          ngnBtn.className = 'px-2.5 py-1 rounded-lg text-xs font-bold transition bg-emerald-600 text-white shadow-sm';
+          usdBtn.className = 'px-2.5 py-1 rounded-lg text-xs font-bold transition text-slate-300 hover:text-white';
+          rateHint.classList.add('hidden');
+        } else {
+          usdBtn.className = 'px-2.5 py-1 rounded-lg text-xs font-bold transition bg-emerald-600 text-white shadow-sm';
+          ngnBtn.className = 'px-2.5 py-1 rounded-lg text-xs font-bold transition text-slate-300 hover:text-white';
+          rateHint.classList.remove('hidden');
+        }
+
+        // Update currency symbols in modals
+        document.querySelectorAll('.modalCurrSymbol').forEach(el => {
+          el.textContent = state.currency === 'USD' ? '$' : '₦';
+        });
+      }
+
+      function renderZeroBasedBanner(summary) {
+        const banner = document.getElementById('zeroBasedBanner');
+        const iconWrap = document.getElementById('statusIconWrap');
+        const badge = document.getElementById('statusBadge');
+        const amountEl = document.getElementById('readyToAssignAmount');
+        const headlineEl = document.getElementById('statusHeadline');
+        const sweepWrap = document.getElementById('sweepActionWrap');
+
+        document.getElementById('kpiTotalIncome').textContent = formatCurrency(summary.totalIncome);
+        document.getElementById('kpiTotalAssigned').textContent = formatCurrency(summary.totalAssigned);
+        document.getElementById('kpiTotalSpent').textContent = formatCurrency(summary.totalSpent);
+
+        const rta = summary.readyToAssign;
+        amountEl.textContent = formatCurrency(rta);
+
+        if (rta === 0) {
+          // Zero-Based Achieved!
+          banner.className = 'rounded-2xl p-5 sm:p-6 shadow-sm border-2 transition-all duration-300 bg-gradient-to-r from-emerald-50 via-white to-emerald-50/60 border-emerald-500';
+          iconWrap.className = 'w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 bg-emerald-600 text-white shadow-md shadow-emerald-600/25';
+          iconWrap.innerHTML = `<svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`;
+          badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-600 text-white';
+          badge.textContent = 'Zero-Based Achieved';
+          amountEl.className = 'font-display font-extrabold text-3xl sm:text-4xl tracking-tight tabular-nums text-emerald-700';
+          headlineEl.className = 'text-sm sm:text-base font-semibold text-emerald-900';
+          headlineEl.textContent = state.currency === 'USD'
+            ? 'Zero-Based Achieved! Every single Dollar is assigned a job.'
+            : 'Zero-Based Achieved! Every single Naira is assigned a job.';
+          sweepWrap.classList.add('hidden');
+        } else if (rta > 0) {
+          // Unallocated Cash Left
+          banner.className = 'rounded-2xl p-5 sm:p-6 shadow-sm border-2 transition-all duration-300 bg-gradient-to-r from-amber-50/80 via-white to-white border-amber-400';
+          iconWrap.className = 'w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 bg-amber-100 text-amber-700';
+          iconWrap.innerHTML = `<svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+          badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-800';
+          badge.textContent = 'Ready to Assign';
+          amountEl.className = 'font-display font-extrabold text-3xl sm:text-4xl tracking-tight tabular-nums text-slate-900';
+          headlineEl.className = 'text-sm sm:text-base font-medium text-slate-700';
+          headlineEl.textContent = `${formatCurrency(rta)} left to assign — give every ${state.currency === 'USD' ? 'Dollar' : 'Naira'} a job!`;
+          sweepWrap.classList.remove('hidden');
+        } else {
+          // Negative: Sapa Alert!
+          banner.className = 'rounded-2xl p-5 sm:p-6 shadow-sm border-2 transition-all duration-300 bg-gradient-to-r from-rose-50 via-white to-rose-50/50 border-rose-500 animate-pulse-soft';
+          iconWrap.className = 'w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 bg-rose-600 text-white shadow-md shadow-rose-600/25';
+          iconWrap.innerHTML = `<svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`;
+          badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-600 text-white';
+          badge.textContent = 'Sapa Alert — Overassigned';
+          amountEl.className = 'font-display font-extrabold text-3xl sm:text-4xl tracking-tight tabular-nums text-rose-600';
+          headlineEl.className = 'text-sm sm:text-base font-semibold text-rose-800';
+          headlineEl.textContent = `Sapa Alert! You assigned ${formatCurrency(Math.abs(rta))} more than you have.`;
+          sweepWrap.classList.add('hidden');
+        }
+      }
+
+      function renderIncomeSection(monthData) {
+        const container = document.getElementById('incomeListContainer');
+        if (!monthData.incomes.length) {
+          container.innerHTML = `
+            <div class="p-6 text-center text-sm text-slate-500">
+              No income sources logged for this month yet. Click <strong>+ Add Income</strong> to fund your envelopes.
+            </div>`;
+          return;
+        }
+
+        container.innerHTML = monthData.incomes.map(inc => {
+          const displayVal = state.currency === 'USD'
+            ? (inc.amount / FX_RATE_NGN_PER_USD).toFixed(2)
+            : Math.round(inc.amount);
+
+          return `
+            <div class="px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/70 transition">
+              <div class="flex items-center gap-3">
+                <span class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+                  ${escapeHtml(inc.tag)}
+                </span>
+                <span class="font-semibold text-sm text-slate-800">${escapeHtml(inc.name)}</span>
+              </div>
+              <div class="flex items-center gap-2 self-end sm:self-auto">
+                <div class="relative flex items-center">
+                  <span class="absolute left-3 text-xs font-bold text-slate-400">${state.currency === 'USD' ? '$' : '₦'}</span>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    data-income-id="${inc.id}"
+                    value="${displayVal}"
+                    aria-label="Edit income amount for ${escapeHtml(inc.name)}"
+                    class="income-amount-input w-36 sm:w-40 pl-7 pr-3 py-1.5 text-right text-sm font-bold tabular-nums bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-emerald-600 rounded-xl text-slate-900 focus:outline-none transition"
+                  />
+                </div>
+                <button
+                  type="button"
+                  data-delete-income="${inc.id}"
+                  title="Remove Income Source"
+                  class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function renderEnvelopesSection(monthData) {
+        const container = document.getElementById('envelopeCategoriesContainer');
+
+        if (!monthData.categories.length) {
+          container.innerHTML = `
+            <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center text-sm text-slate-500">
+              No envelope categories yet. Click <strong>New Category</strong> to begin structuring your monthly cash flow.
+            </div>`;
+          return;
+        }
+
+        const stepAmountNgn = state.currency === 'USD' ? 8000 : 5000; // $5 or ₦5,000 quick step
+        const stepLabel = state.currency === 'USD' ? '$5' : '₦5k';
+
+        container.innerHTML = monthData.categories.map(cat => {
+          const catEnvelopes = monthData.envelopes.filter(e => e.categoryId === cat.id);
+          const catAssigned = catEnvelopes.reduce((s, e) => s + (Number(e.assigned) || 0), 0);
+          const catSpent = catEnvelopes.reduce((s, e) => s + getEnvelopeSpent(monthData, e.id), 0);
+          const catAvailable = catAssigned - catSpent;
+
+          const envelopesHtml = catEnvelopes.length === 0
+            ? `<div class="px-5 py-6 text-center text-xs text-slate-400">No envelopes in this category yet. Click <strong>+ New Envelope</strong> to add one.</div>`
+            : catEnvelopes.map(env => {
+                const spent = getEnvelopeSpent(monthData, env.id);
+                const assigned = Number(env.assigned) || 0;
+                const available = assigned - spent;
+                const target = Number(env.target) || 0;
+                const utilPct = assigned > 0 ? Math.min(100, Math.round((spent / assigned) * 100)) : (spent > 0 ? 100 : 0);
+
+                // Status styling for Available Pill & Progress Bar
+                let availBadgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-200';
+                let barColorClass = 'bg-emerald-500';
+                let cardBorderClass = 'hover:bg-slate-50/70';
+
+                if (available < 0) {
+                  availBadgeClass = 'bg-rose-100 text-rose-800 border-rose-300 font-extrabold';
+                  barColorClass = 'bg-rose-500';
+                  cardBorderClass = 'bg-rose-50/35 hover:bg-rose-50/60';
+                } else if (available === 0 && assigned === 0) {
+                  availBadgeClass = 'bg-slate-100 text-slate-600 border-slate-200';
+                  barColorClass = 'bg-slate-300';
+                } else if (utilPct >= 85) {
+                  availBadgeClass = 'bg-amber-100 text-amber-800 border-amber-200';
+                  barColorClass = 'bg-amber-500';
+                }
+
+                const priorityColors = {
+                  Essential: 'bg-slate-100 text-slate-700',
+                  Flexible: 'bg-sky-50 text-sky-700',
+                  Goal: 'bg-purple-50 text-purple-700'
+                };
+
+                const displayAssigned = state.currency === 'USD'
+                  ? (assigned / FX_RATE_NGN_PER_USD).toFixed(2)
+                  : Math.round(assigned);
+
+                return `
+                  <div class="p-4 sm:px-5 sm:py-4 transition ${cardBorderClass}">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3.5">
+
+                      <!-- Left: Icon, Name, Priority & Target -->
+                      <div class="flex items-start gap-3 min-w-0 flex-1">
+                        <div class="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200/80 flex items-center justify-center text-lg shrink-0">
+                          ${escapeHtml(env.icon || '✉️')}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                          <div class="flex flex-wrap items-center gap-2">
+                            <span class="font-display font-bold text-sm sm:text-[15px] text-slate-900 truncate">${escapeHtml(env.name)}</span>
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide ${priorityColors[env.priority] || priorityColors.Essential}">
+                              ${escapeHtml(env.priority)}
+                            </span>
+                            ${available < 0 ? `<button type="button" data-cover-overspend="${env.id}" class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-600 text-white hover:bg-rose-700 transition">Cover Overspend</button>` : ''}
+                          </div>
+                          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 mt-1 tabular-nums">
+                            <span>Goal: <strong class="text-slate-700">${formatCurrency(target)}</strong></span>
+                            <span>•</span>
+                            <span>Spent: <strong class="${spent > assigned ? 'text-rose-600' : 'text-slate-700'}">${formatCurrency(spent)}</strong></span>
+                            <span>•</span>
+                            <span>${utilPct}% used</span>
+                          </div>
+                          <!-- Utilization Progress Bar -->
+                          <div class="w-full max-w-xs h-1.5 bg-slate-100 rounded-full overflow-hidden mt-2">
+                            <div class="h-full rounded-full transition-all duration-300 ${barColorClass}" style="width: ${utilPct}%"></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Right: Assigned Input + Steppers + Available Pill + Quick Actions -->
+                      <div class="flex flex-wrap sm:flex-nowrap items-center justify-between md:justify-end gap-2.5 sm:gap-3 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+
+                        <!-- Assigned Editor with -5k / +5k Steppers -->
+                        <div class="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/80">
+                          <button
+                            type="button"
+                            data-step-env="${env.id}"
+                            data-step-delta="${-stepAmountNgn}"
+                            title="Decrease assigned by ${stepLabel}"
+                            class="px-2 py-1 rounded-lg text-[11px] font-bold text-slate-600 hover:bg-white hover:text-slate-900 transition"
+                          >-${stepLabel}</button>
+                          <div class="relative flex items-center mx-1">
+                            <span class="absolute left-2 text-[11px] font-bold text-slate-400">${state.currency === 'USD' ? '$' : '₦'}</span>
+                            <input
+                              type="number"
+                              step="any"
+                              min="0"
+                              data-env-assigned="${env.id}"
+                              value="${displayAssigned}"
+                              aria-label="Assigned amount for ${escapeHtml(env.name)}"
+                              class="env-assigned-input w-24 sm:w-28 pl-5 pr-2 py-1 text-right text-xs sm:text-sm font-bold tabular-nums bg-white border border-slate-200 focus:border-emerald-600 rounded-lg text-slate-900 focus:outline-none"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            data-step-env="${env.id}"
+                            data-step-delta="${stepAmountNgn}"
+                            title="Increase assigned by ${stepLabel}"
+                            class="px-2 py-1 rounded-lg text-[11px] font-bold text-emerald-700 hover:bg-white hover:text-emerald-800 transition"
+                          >+${stepLabel}</button>
+                        </div>
+
+                        <!-- Available Balance Pill -->
+                        <div class="text-right min-w-[96px]">
+                          <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Available</div>
+                          <span class="inline-block px-2.5 py-0.5 rounded-lg text-xs sm:text-sm font-bold tabular-nums border ${availBadgeClass}">
+                            ${formatCurrency(available)}
+                          </span>
+                        </div>
+
+                        <!-- Envelope Quick Action Icons (Log Spend, Edit, Delete) -->
+                        <div class="flex items-center gap-1">
+                          <button
+                            type="button"
+                            data-quick-spend="${env.id}"
+                            title="Log Expense to ${escapeHtml(env.name)}"
+                            class="p-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/70 transition"
+                          >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                          </button>
+                          <button
+                            type="button"
+                            data-edit-env="${env.id}"
+                            title="Edit Envelope Settings"
+                            class="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition"
+                          >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                          </button>
+                          <button
+                            type="button"
+                            data-delete-env="${env.id}"
+                            title="Delete Envelope"
+                            class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                          >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                          </button>
+                        </div>
+
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('');
+
+          return `
+            <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
+              <!-- Category Header -->
+              <div class="px-5 py-3.5 bg-slate-50/90 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2.5">
+                  <h3 class="font-display font-bold text-sm sm:text-base text-slate-900">${escapeHtml(cat.name)}</h3>
+                  <span class="text-xs font-medium text-slate-500">(${catEnvelopes.length} envelopes)</span>
+                </div>
+                <div class="flex items-center gap-4 text-xs tabular-nums">
+                  <div>
+                    <span class="text-slate-500">Assigned:</span>
+                    <strong class="text-slate-900">${formatCurrency(catAssigned)}</strong>
+                  </div>
+                  <div>
+                    <span class="text-slate-500">Available:</span>
+                    <strong class="${catAvailable < 0 ? 'text-rose-600' : 'text-emerald-700'}">${formatCurrency(catAvailable)}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Envelopes List -->
+              <div class="divide-y divide-slate-100">
+                ${envelopesHtml}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function renderSapaRiskMeter(monthData, summary) {
+        // Calculate Essentials vs Savings ratios
+        const catTypeMap = {};
+        monthData.categories.forEach(c => { catTypeMap[c.id] = c.type; });
+
+        let essentialsAssigned = 0;
+        let savingsAssigned = 0;
+        let overspentCount = 0;
+
+        monthData.envelopes.forEach(env => {
+          const type = catTypeMap[env.categoryId] || 'essentials';
+          const assigned = Number(env.assigned) || 0;
+          const spent = getEnvelopeSpent(monthData, env.id);
+          if (type === 'essentials') essentialsAssigned += assigned;
+          if (type === 'savings') savingsAssigned += assigned;
+          if (spent > assigned) overspentCount++;
+        });
+
+        const income = Math.max(1, summary.totalIncome);
+        const essentialsPct = Math.round((essentialsAssigned / income) * 100);
+        const savingsPct = Math.round((savingsAssigned / income) * 100);
+
+        document.getElementById('essentialsRatioVal').textContent = `${essentialsPct}% of Income`;
+        document.getElementById('savingsRatioVal').textContent = `${savingsPct}% of Income`;
+
+        // Calculate SapaGuard Health Score (0 - 100)
+        let score = 70;
+        if (summary.readyToAssign === 0 && summary.totalIncome > 0) score += 15;
+        if (summary.readyToAssign < 0) score -= 25;
+        if (savingsPct >= 20) score += 12;
+        else if (savingsPct >= 10) score += 5;
+        if (essentialsPct > 65) score -= 12;
+        score -= overspentCount * 8;
+        score = Math.max(12, Math.min(99, score));
+
+        // Runway calculation
+        const monthlyBurn = Math.max(1, essentialsAssigned);
+        const runwayMonths = (savingsAssigned / monthlyBurn + 1).toFixed(1);
+
+        const badge = document.getElementById('sapaRiskBadge');
+        const bar = document.getElementById('sapaMeterBar');
+        const scoreLabel = document.getElementById('sapaScoreLabel');
+        const runwayLabel = document.getElementById('runwayLabel');
+        const adviceEl = document.getElementById('sapaAdviceText');
+
+        scoreLabel.textContent = `${score} / 100`;
+        runwayLabel.textContent = `Buffer Index: ${runwayMonths}x`;
+        bar.style.width = `${score}%`;
+
+        if (score >= 75) {
+          badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+          badge.textContent = 'Sapa-Proof';
+          bar.className = 'h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500';
+          adviceEl.textContent = overspentCount > 0
+            ? `Strong foundation, though ${overspentCount} envelope(s) are slightly over budget. Use Move Money to rebalance.`
+            : `Solid cash flow discipline! Your essentials (${essentialsPct}%) and savings (${savingsPct}%) keep Sapa locked out.`;
+        } else if (score >= 48) {
+          badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30';
+          badge.textContent = 'Moderate Caution';
+          bar.className = 'h-full rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 transition-all duration-500';
+          adviceEl.textContent = `Watch flexible spending and trim overspent envelopes so mid-month cash crunch doesn't sneak in.`;
+        } else {
+          badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30';
+          badge.textContent = 'High Sapa Risk';
+          bar.className = 'h-full rounded-full bg-gradient-to-r from-rose-600 to-orange-500 transition-all duration-500';
+          adviceEl.textContent = `Warning: Over-allocated budget or multiple overspent envelopes detected. Rebalance immediately!`;
+        }
+      }
+
+      function renderCashFlowChart(monthData) {
+        const ctx = document.getElementById('cashFlowChart').getContext('2d');
+        const palette = ['#059669', '#0284c7', '#d97706', '#7c3aed', '#e11d48', '#0d9488'];
+
+        const labels = [];
+        const assignedValues = [];
+        const spentValues = [];
+
+        monthData.categories.forEach(cat => {
+          const envs = monthData.envelopes.filter(e => e.categoryId === cat.id);
+          const assignedSum = envs.reduce((s, e) => s + (Number(e.assigned) || 0), 0);
+          const spentSum = envs.reduce((s, e) => s + getEnvelopeSpent(monthData, e.id), 0);
+          labels.push(cat.name);
+          assignedValues.push(toDisplayValue(assignedSum));
+          spentValues.push(toDisplayValue(spentSum));
+        });
+
+        // Update Legend Summary List below chart
+        const legendContainer = document.getElementById('chartLegendSummary');
+        legendContainer.innerHTML = monthData.categories.map((cat, idx) => {
+          const envs = monthData.envelopes.filter(e => e.categoryId === cat.id);
+          const assignedSum = envs.reduce((s, e) => s + (Number(e.assigned) || 0), 0);
+          const spentSum = envs.reduce((s, e) => s + getEnvelopeSpent(monthData, e.id), 0);
+          const color = palette[idx % palette.length];
+          return `
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${color}"></span>
+                <span class="text-slate-700 font-medium truncate">${escapeHtml(cat.name)}</span>
+              </div>
+              <div class="tabular-nums text-slate-600 shrink-0">
+                <span class="font-bold text-slate-900">${formatCurrency(assignedSum)}</span>
+                <span class="text-slate-400 text-[11px]"> (${formatCurrency(spentSum)} spent)</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        // Update tab buttons styling
+        const donutTab = document.getElementById('chartTabDonut');
+        const barTab = document.getElementById('chartTabBar');
+        if (state.chartMode === 'donut') {
+          donutTab.className = 'px-2.5 py-1 rounded-lg bg-white text-slate-900 shadow-xs transition';
+          barTab.className = 'px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition';
+        } else {
+          barTab.className = 'px-2.5 py-1 rounded-lg bg-white text-slate-900 shadow-xs transition';
+          donutTab.className = 'px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition';
+        }
+
+        if (cashFlowChartInstance) {
+          cashFlowChartInstance.destroy();
+        }
+
+        if (state.chartMode === 'donut') {
+          cashFlowChartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+              labels,
+              datasets: [{
+                data: assignedValues,
+                backgroundColor: palette,
+                borderWidth: 2,
+                borderColor: '#ffffff',
+                hoverOffset: 6
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              cutout: '66%',
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: function (context) {
+                      const sym = state.currency === 'USD' ? '$' : '₦';
+                      const val = Number(context.raw || 0).toLocaleString(state.currency === 'USD' ? 'en-US' : 'en-NG', {
+                        maximumFractionDigits: state.currency === 'USD' ? 2 : 0
+                      });
+                      return ` ${context.label}: ${sym}${val}`;
+                    }
+                  }
+                }
+              }
+            }
+          });
+        } else {
+          cashFlowChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels.map(l => l.split(' ')[0]),
+              datasets: [
+                {
+                  label: 'Assigned',
+                  data: assignedValues,
+                  backgroundColor: '#059669',
+                  borderRadius: 6
+                },
+                {
+                  label: 'Spent',
+                  data: spentValues,
+                  backgroundColor: '#0f172a',
+                  borderRadius: 6
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'bottom',
+                  labels: { boxWidth: 10, font: { size: 11 } }
+                }
+              },
+              scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+                y: {
+                  beginAtZero: true,
+                  grid: { color: '#f1f5f9' },
+                  ticks: {
+                    font: { size: 10 },
+                    callback: val => (state.currency === 'USD' ? '$' : '₦') + Number(val).toLocaleString()
+                  }
+                }
+              }
+            }
+          });
+        }
+      }
+
+      function renderTransactionsSection(monthData) {
+        const filterSelect = document.getElementById('txFilterEnvelope');
+        const currentFilter = filterSelect.value || 'ALL';
+
+        // Populate Envelope Filter Options
+        filterSelect.innerHTML = `<option value="ALL">All Envelopes (${monthData.transactions.length})</option>` +
+          monthData.envelopes.map(e => `<option value="${e.id}">${escapeHtml(e.icon)} ${escapeHtml(e.name)}</option>`).join('');
+
+        if (monthData.envelopes.some(e => e.id === currentFilter)) {
+          filterSelect.value = currentFilter;
+        } else {
+          filterSelect.value = 'ALL';
+        }
+
+        const activeFilter = filterSelect.value;
+        const envMap = {};
+        monthData.envelopes.forEach(e => { envMap[e.id] = e; });
+
+        const filteredTx = monthData.transactions
+          .filter(t => activeFilter === 'ALL' || t.envelopeId === activeFilter)
+          .slice()
+          .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+        const container = document.getElementById('transactionListContainer');
+        if (!filteredTx.length) {
+          container.innerHTML = `
+            <div class="p-6 text-center text-xs text-slate-400">
+              No transactions recorded for this view yet. Click <strong>+ Log Spend</strong> to record an expense.
+            </div>`;
+          return;
+        }
+
+        container.innerHTML = filteredTx.map(tx => {
+          const env = envMap[tx.envelopeId];
+          const envName = env ? `${env.icon} ${env.name}` : 'Deleted Envelope';
+          return `
+            <div class="px-4 py-3 flex items-center justify-between gap-3 hover:bg-slate-50 transition group">
+              <div class="min-w-0 flex-1">
+                <div class="font-semibold text-xs sm:text-sm text-slate-900 truncate">${escapeHtml(tx.note)}</div>
+                <div class="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
+                  <span class="truncate font-medium text-emerald-700">${escapeHtml(envName)}</span>
+                  <span>•</span>
+                  <span class="shrink-0">${escapeHtml(tx.date)}</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <span class="font-bold text-xs sm:text-sm tabular-nums text-slate-900">-${formatCurrency(tx.amount)}</span>
+                <button
+                  type="button"
+                  data-delete-tx="${tx.id}"
+                  title="Undo / Delete Transaction"
+                  class="p-1 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // ==================== MODAL CONTROLLERS ====================
+
+      function openModal(modalId) {
+        const backdrop = document.getElementById('modalBackdrop');
+        document.querySelectorAll('.modal-panel').forEach(p => p.classList.add('hidden'));
+        backdrop.classList.remove('hidden');
+        document.getElementById(modalId).classList.remove('hidden');
+      }
+
+      function closeAllModals() {
+        document.getElementById('modalBackdrop').classList.add('hidden');
+        document.querySelectorAll('.modal-panel').forEach(p => p.classList.add('hidden'));
+      }
+
+      function populateEnvelopeSelect(selectEl, preselectId = null) {
+        const monthData = getCurrentMonthData();
+        selectEl.innerHTML = monthData.envelopes.map(e => {
+          const avail = (Number(e.assigned) || 0) - getEnvelopeSpent(monthData, e.id);
+          return `<option value="${e.id}">${escapeHtml(e.icon)} ${escapeHtml(e.name)} (Avail: ${formatCurrency(avail)})</option>`;
+        }).join('');
+        if (preselectId && monthData.envelopes.some(e => e.id === preselectId)) {
+          selectEl.value = preselectId;
+        }
+      }
+
+      function openLogExpenseModal(preselectEnvId = null) {
+        const monthData = getCurrentMonthData();
+        if (!monthData.envelopes.length) {
+          showToast('Create at least one envelope before logging expenses.', 'warning');
+          return;
+        }
+        const selectEl = document.getElementById('expEnvelopeSelect');
+        populateEnvelopeSelect(selectEl, preselectEnvId);
+        updateExpenseBalanceHint();
+
+        document.getElementById('expAmountInput').value = '';
+        document.getElementById('expNoteInput').value = '';
+        document.getElementById('expDateInput').value = `${state.currentMonth}-25`;
+        openModal('expenseModal');
+        setTimeout(() => document.getElementById('expAmountInput').focus(), 50);
+      }
+
+      function updateExpenseBalanceHint() {
+        const monthData = getCurrentMonthData();
+        const envId = document.getElementById('expEnvelopeSelect').value;
+        const env = monthData.envelopes.find(e => e.id === envId);
+        const hint = document.getElementById('expEnvelopeBalanceHint');
+        if (!env) {
+          hint.textContent = '';
+          return;
+        }
+        const avail = (Number(env.assigned) || 0) - getEnvelopeSpent(monthData, env.id);
+        hint.textContent = `Available in ${env.name}: ${formatCurrency(avail)}`;
+        hint.className = avail < 0
+          ? 'text-xs text-rose-600 font-semibold mt-1'
+          : 'text-xs text-emerald-700 font-semibold mt-1';
+      }
+
+      function openMoveMoneyModal(preselectToId = null) {
+        const monthData = getCurrentMonthData();
+        if (monthData.envelopes.length < 2) {
+          showToast('You need at least two envelopes to move money.', 'warning');
+          return;
+        }
+        const fromSelect = document.getElementById('moveFromSelect');
+        const toSelect = document.getElementById('moveToSelect');
+        populateEnvelopeSelect(fromSelect);
+        populateEnvelopeSelect(toSelect, preselectToId);
+
+        // Suggest a positive-balance source envelope
+        const positiveEnv = monthData.envelopes.find(e => {
+          const avail = (Number(e.assigned) || 0) - getEnvelopeSpent(monthData, e.id);
+          return avail > 0 && e.id !== preselectToId;
+        });
+        if (positiveEnv) fromSelect.value = positiveEnv.id;
+
+        if (preselectToId) {
+          const targetEnv = monthData.envelopes.find(e => e.id === preselectToId);
+          if (targetEnv) {
+            const deficit = getEnvelopeSpent(monthData, targetEnv.id) - (Number(targetEnv.assigned) || 0);
+            document.getElementById('moveAmountInput').value = deficit > 0 ? toDisplayValue(deficit) : '';
+          }
+        } else {
+          document.getElementById('moveAmountInput').value = '';
+        }
+        openModal('moveMoneyModal');
+      }
+
+      function openEnvelopeModal(editEnvId = null) {
+        const monthData = getCurrentMonthData();
+        if (!monthData.categories.length) {
+          showToast('Create a category first.', 'warning');
+          return;
+        }
+        const catSelect = document.getElementById('envCategorySelect');
+        catSelect.innerHTML = monthData.categories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+
+        if (editEnvId) {
+          const env = monthData.envelopes.find(e => e.id === editEnvId);
+          if (!env) return;
+          document.getElementById('envelopeModalTitle').textContent = 'Edit Envelope';
+          document.getElementById('envEditId').value = env.id;
+          catSelect.value = env.categoryId;
+          document.getElementById('envIconSelect').value = env.icon || '✉️';
+          document.getElementById('envNameInput').value = env.name;
+          document.getElementById('envPrioritySelect').value = env.priority;
+          document.getElementById('envTargetInput').value = toDisplayValue(env.target);
+          document.getElementById('envAssignedInput').value = toDisplayValue(env.assigned);
+        } else {
+          document.getElementById('envelopeModalTitle').textContent = 'Create New Envelope';
+          document.getElementById('envEditId').value = '';
+          document.getElementById('envIconSelect').value = '🍲';
+          document.getElementById('envNameInput').value = '';
+          document.getElementById('envPrioritySelect').value = 'Essential';
+          document.getElementById('envTargetInput').value = '';
+          document.getElementById('envAssignedInput').value = '0';
+        }
+        openModal('envelopeModal');
+      }
+
+      // ==================== EVENT LISTENERS ====================
+
+      // Month Navigation
+      document.getElementById('monthSelect').addEventListener('change', e => {
+        state.currentMonth = e.target.value;
+        renderAll();
+      });
+
+      document.getElementById('prevMonthBtn').addEventListener('click', () => {
+        const idx = MONTH_ORDER.indexOf(state.currentMonth);
+        if (idx > 0) {
+          state.currentMonth = MONTH_ORDER[idx - 1];
+          renderAll();
+        }
+      });
+
+      document.getElementById('nextMonthBtn').addEventListener('click', () => {
+        const idx = MONTH_ORDER.indexOf(state.currentMonth);
+        if (idx < MONTH_ORDER.length - 1) {
+          state.currentMonth = MONTH_ORDER[idx + 1];
+          renderAll();
+        }
+      });
+
+      // Currency Switcher
+      document.getElementById('currNgnBtn').addEventListener('click', () => {
+        if (state.currency !== 'NGN') {
+          state.currency = 'NGN';
+          renderAll();
+          showToast('Switched display currency to Nigerian Naira (₦ NGN)');
+        }
+      });
+
+      document.getElementById('currUsdBtn').addEventListener('click', () => {
+        if (state.currency !== 'USD') {
+          state.currency = 'USD';
+          renderAll();
+          showToast('Switched display currency to US Dollars ($ USD)');
+        }
+      });
+
+      // Sweep Remainder
+      document.getElementById('sweepRemainderBtn').addEventListener('click', () => {
+        const monthData = getCurrentMonthData();
+        const summary = computeSummary(monthData);
+        if (summary.readyToAssign <= 0) return;
+
+        document.getElementById('sweepAmountText').textContent = formatCurrency(summary.readyToAssign);
+        const select = document.getElementById('sweepEnvelopeSelect');
+        populateEnvelopeSelect(select);
+
+        // Default to Anti-Sapa Emergency Fund if present
+        const emergencyEnv = monthData.envelopes.find(e => e.name.toLowerCase().includes('emergency') || e.name.toLowerCase().includes('sapa'));
+        if (emergencyEnv) select.value = emergencyEnv.id;
+
+        openModal('sweepModal');
+      });
+
+      document.getElementById('sweepForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const monthData = getCurrentMonthData();
+        const summary = computeSummary(monthData);
+        const envId = document.getElementById('sweepEnvelopeSelect').value;
+        const env = monthData.envelopes.find(item => item.id === envId);
+        if (env && summary.readyToAssign > 0) {
+          const swept = summary.readyToAssign;
+          env.assigned = (Number(env.assigned) || 0) + swept;
+          closeAllModals();
+          renderAll();
+          showToast(`Swept ${formatCurrency(swept)} into ${env.name}! Zero-Based Achieved!`);
+        }
+      });
+
+      // Copy Previous Month Allocations
+      document.getElementById('copyPrevMonthBtn').addEventListener('click', () => {
+        const idx = MONTH_ORDER.indexOf(state.currentMonth);
+        const prevMonthKey = idx > 0 ? MONTH_ORDER[idx - 1] : '2026-10';
+        if (prevMonthKey === state.currentMonth) {
+          showToast('Already viewing the earliest available month.', 'warning');
+          return;
+        }
+        const prevData = state.months[prevMonthKey];
+        const currData = getCurrentMonthData();
+
+        currData.categories = prevData.categories.map(c => ({ ...c, id: 'cat-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6) }));
+        const catIdMap = {};
+        prevData.categories.forEach((oldCat, i) => {
+          catIdMap[oldCat.id] = currData.categories[i].id;
+        });
+
+        currData.envelopes = prevData.envelopes.map(env => ({
+          ...env,
+          id: 'env-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+          categoryId: catIdMap[env.categoryId] || currData.categories[0].id
+        }));
+
+        renderAll();
+        showToast(`Copied envelope targets & assignments from ${MONTH_LABELS[prevMonthKey]}!`);
+      });
+
+      // Income Inline Edit & Delete
+      document.getElementById('incomeListContainer').addEventListener('change', e => {
+        if (e.target.classList.contains('income-amount-input')) {
+          const id = e.target.dataset.incomeId;
+          const monthData = getCurrentMonthData();
+          const inc = monthData.incomes.find(i => i.id === id);
+          if (inc) {
+            inc.amount = Math.max(0, fromDisplayValue(e.target.value));
+            renderAll();
+            showToast(`Updated ${inc.name}`);
+          }
+        }
+      });
+
+      document.getElementById('incomeListContainer').addEventListener('click', e => {
+        const delBtn = e.target.closest('[data-delete-income]');
+        if (delBtn) {
+          const id = delBtn.dataset.deleteIncome;
+          const monthData = getCurrentMonthData();
+          monthData.incomes = monthData.incomes.filter(i => i.id !== id);
+          renderAll();
+          showToast('Income stream removed', 'warning');
+        }
+      });
+
+      // Add Income Modal
+      document.getElementById('openAddIncomeBtn').addEventListener('click', () => {
+        document.getElementById('incNameInput').value = '';
+        document.getElementById('incAmountInput').value = '';
+        openModal('incomeModal');
+        setTimeout(() => document.getElementById('incNameInput').focus(), 50);
+      });
+
+      document.getElementById('incomeForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const name = document.getElementById('incNameInput').value.trim();
+        const amountNgn = fromDisplayValue(document.getElementById('incAmountInput').value);
+        const tag = document.getElementById('incTagInput').value;
+        if (!name || amountNgn <= 0) return;
+
+        getCurrentMonthData().incomes.push({
+          id: 'inc-' + Date.now(),
+          name,
+          amount: amountNgn,
+          tag
+        });
+        closeAllModals();
+        renderAll();
+        showToast(`Added ${formatCurrency(amountNgn)} from ${name}`);
+      });
+
+      // Envelope Delegated Events (Stepper, Inline Edit, Quick Spend, Edit, Delete, Cover Overspend)
+      document.getElementById('envelopeCategoriesContainer').addEventListener('click', e => {
+        const monthData = getCurrentMonthData();
+
+        const stepBtn = e.target.closest('[data-step-env]');
+        if (stepBtn) {
+          const envId = stepBtn.dataset.stepEnv;
+          const delta = Number(stepBtn.dataset.stepDelta);
+          const env = monthData.envelopes.find(item => item.id === envId);
+          if (env) {
+            env.assigned = Math.max(0, (Number(env.assigned) || 0) + delta);
+            renderAll();
+          }
+          return;
+        }
+
+        const quickSpendBtn = e.target.closest('[data-quick-spend]');
+        if (quickSpendBtn) {
+          openLogExpenseModal(quickSpendBtn.dataset.quickSpend);
+          return;
+        }
+
+        const coverBtn = e.target.closest('[data-cover-overspend]');
+        if (coverBtn) {
+          openMoveMoneyModal(coverBtn.dataset.coverOverspend);
+          return;
+        }
+
+        const editBtn = e.target.closest('[data-edit-env]');
+        if (editBtn) {
+          openEnvelopeModal(editBtn.dataset.editEnv);
+          return;
+        }
+
+        const delBtn = e.target.closest('[data-delete-env]');
+        if (delBtn) {
+          const envId = delBtn.dataset.deleteEnv;
+          const env = monthData.envelopes.find(item => item.id === envId);
+          monthData.envelopes = monthData.envelopes.filter(item => item.id !== envId);
+          monthData.transactions = monthData.transactions.filter(t => t.envelopeId !== envId);
+          renderAll();
+          showToast(`Deleted "${env ? env.name : 'Envelope'}"`, 'warning');
+        }
+      });
+
+      document.getElementById('envelopeCategoriesContainer').addEventListener('change', e => {
+        if (e.target.classList.contains('env-assigned-input')) {
+          const envId = e.target.dataset.envAssigned;
+          const monthData = getCurrentMonthData();
+          const env = monthData.envelopes.find(item => item.id === envId);
+          if (env) {
+            env.assigned = Math.max(0, fromDisplayValue(e.target.value));
+            renderAll();
+          }
+        }
+      });
+
+      // Add / Edit Envelope Form Submit
+      document.getElementById('openAddEnvelopeBtn').addEventListener('click', () => openEnvelopeModal(null));
+
+      document.getElementById('envelopeForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const monthData = getCurrentMonthData();
+        const editId = document.getElementById('envEditId').value;
+        const categoryId = document.getElementById('envCategorySelect').value;
+        const icon = document.getElementById('envIconSelect').value;
+        const name = document.getElementById('envNameInput').value.trim();
+        const priority = document.getElementById('envPrioritySelect').value;
+        const target = Math.max(0, fromDisplayValue(document.getElementById('envTargetInput').value));
+        const assigned = Math.max(0, fromDisplayValue(document.getElementById('envAssignedInput').value));
+
+        if (!name) return;
+
+        if (editId) {
+          const env = monthData.envelopes.find(item => item.id === editId);
+          if (env) {
+            env.categoryId = categoryId;
+            env.icon = icon;
+            env.name = name;
+            env.priority = priority;
+            env.target = target;
+            env.assigned = assigned;
+          }
+          showToast(`Updated envelope "${name}"`);
+        } else {
+          monthData.envelopes.push({
+            id: 'env-' + Date.now(),
+            categoryId,
+            icon,
+            name,
+            priority,
+            target,
+            assigned
+          });
+          showToast(`Created envelope "${name}"`);
+        }
+        closeAllModals();
+        renderAll();
+      });
+
+      // Add Category Modal
+      document.getElementById('openAddCategoryBtn').addEventListener('click', () => {
+        document.getElementById('catNameInput').value = '';
+        openModal('categoryModal');
+        setTimeout(() => document.getElementById('catNameInput').focus(), 50);
+      });
+
+      document.getElementById('categoryForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const name = document.getElementById('catNameInput').value.trim();
+        const type = document.getElementById('catTypeSelect').value;
+        if (!name) return;
+        getCurrentMonthData().categories.push({
+          id: 'cat-' + Date.now(),
+          name,
+          type
+        });
+        closeAllModals();
+        renderAll();
+        showToast(`Created category "${name}"`);
+      });
+
+      // Move Money Modal
+      document.getElementById('openMoveMoneyBtn').addEventListener('click', () => openMoveMoneyModal(null));
+
+      document.getElementById('moveMoneyForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const monthData = getCurrentMonthData();
+        const fromId = document.getElementById('moveFromSelect').value;
+        const toId = document.getElementById('moveToSelect').value;
+        const amountNgn = fromDisplayValue(document.getElementById('moveAmountInput').value);
+
+        if (fromId === toId) {
+          showToast('Select two different envelopes to transfer funds.', 'warning');
+          return;
+        }
+        if (amountNgn <= 0) return;
+
+        const fromEnv = monthData.envelopes.find(item => item.id === fromId);
+        const toEnv = monthData.envelopes.find(item => item.id === toId);
+        if (fromEnv && toEnv) {
+          fromEnv.assigned = Math.max(0, (Number(fromEnv.assigned) || 0) - amountNgn);
+          toEnv.assigned = (Number(toEnv.assigned) || 0) + amountNgn;
+          closeAllModals();
+          renderAll();
+          showToast(`Moved ${formatCurrency(amountNgn)} from ${fromEnv.name} to ${toEnv.name}`);
+        }
+      });
+
+      // Log Expense Triggers & Submit
+      document.getElementById('openExpenseModalTop').addEventListener('click', () => openLogExpenseModal(null));
+      document.getElementById('openExpenseModalSide').addEventListener('click', () => openLogExpenseModal(null));
+      document.getElementById('expEnvelopeSelect').addEventListener('change', updateExpenseBalanceHint);
+
+      document.getElementById('expenseForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const monthData = getCurrentMonthData();
+        const envelopeId = document.getElementById('expEnvelopeSelect').value;
+        const amountNgn = fromDisplayValue(document.getElementById('expAmountInput').value);
+        const note = document.getElementById('expNoteInput').value.trim();
+        const date = document.getElementById('expDateInput').value;
+
+        if (!envelopeId || amountNgn <= 0 || !note) return;
+
+        monthData.transactions.unshift({
+          id: 'tx-' + Date.now(),
+          envelopeId,
+          note,
+          amount: amountNgn,
+          date
+        });
+
+        const env = monthData.envelopes.find(item => item.id === envelopeId);
+        const newAvail = env ? (Number(env.assigned) || 0) - getEnvelopeSpent(monthData, env.id) : 0;
+
+        closeAllModals();
+        renderAll();
+        if (newAvail < 0) {
+          showToast(`Logged ${formatCurrency(amountNgn)} — ${env.name} is now overspent by ${formatCurrency(Math.abs(newAvail))}!`, 'danger');
+        } else {
+          showToast(`Logged ${formatCurrency(amountNgn)} under ${env ? env.name : 'Envelope'}`);
+        }
+      });
+
+      // Transactions Filter & Delete
+      document.getElementById('txFilterEnvelope').addEventListener('change', () => {
+        renderTransactionsSection(getCurrentMonthData());
+      });
+
+      document.getElementById('transactionListContainer').addEventListener('click', e => {
+        const delBtn = e.target.closest('[data-delete-tx]');
+        if (delBtn) {
+          const txId = delBtn.dataset.deleteTx;
+          const monthData = getCurrentMonthData();
+          monthData.transactions = monthData.transactions.filter(t => t.id !== txId);
+          renderAll();
+          showToast('Transaction undone & funds restored to envelope');
+        }
+      });
+
+      // Chart Mode Switcher
+      document.getElementById('chartTabDonut').addEventListener('click', () => {
+        state.chartMode = 'donut';
+        renderCashFlowChart(getCurrentMonthData());
+        saveState();
+      });
+
+      document.getElementById('chartTabBar').addEventListener('click', () => {
+        state.chartMode = 'bar';
+        renderCashFlowChart(getCurrentMonthData());
+        saveState();
+      });
+
+      // Export CSV & JSON
+      document.getElementById('exportCsvBtn').addEventListener('click', () => {
+        const monthData = getCurrentMonthData();
+        const catMap = {};
+        monthData.categories.forEach(c => { catMap[c.id] = c.name; });
+
+        const rows = [
+          ['Month', 'Category', 'Envelope', 'Priority', 'Target (NGN)', 'Assigned (NGN)', 'Spent (NGN)', 'Available (NGN)']
+        ];
+        monthData.envelopes.forEach(env => {
+          const spent = getEnvelopeSpent(monthData, env.id);
+          const avail = (Number(env.assigned) || 0) - spent;
+          rows.push([
+            MONTH_LABELS[state.currentMonth],
+            `"${(catMap[env.categoryId] || '').replace(/"/g, '""')}"`,
+            `"${env.name.replace(/"/g, '""')}"`,
+            env.priority,
+            env.target,
+            env.assigned,
+            spent,
+            avail
+          ]);
+        });
+
+        const csvContent = 'data:text/csv;charset=utf-8,' + rows.map(r => r.join(',')).join('\n');
+        const link = document.createElement('a');
+        link.setAttribute('href', encodeURI(csvContent));
+        link.setAttribute('download', `SapaGuard_${state.currentMonth}_Budget.csv`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        showToast('Exported monthly budget plan as CSV');
+      });
+
+      document.getElementById('exportJsonBtn').addEventListener('click', () => {
+        const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(getCurrentMonthData(), null, 2));
+        const link = document.createElement('a');
+        link.setAttribute('href', dataStr);
+        link.setAttribute('download', `SapaGuard_${state.currentMonth}_Plan.json`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        showToast('Exported monthly budget plan as JSON');
+      });
+
+      // Reset Demo Data
+      document.getElementById('resetDemoBtn').addEventListener('click', () => {
+        openModal('resetConfirmModal');
+      });
+
+      document.getElementById('confirmResetBtn').addEventListener('click', () => {
+        localStorage.removeItem(STORAGE_KEY);
+        state = getDefaultState();
+        closeAllModals();
+        renderAll();
+        showToast('Restored default SapaGuard demo budget!');
+      });
+
+      // Close Modal Triggers
+      document.querySelectorAll('[data-close-modal]').forEach(btn => {
+        btn.addEventListener('click', closeAllModals);
+      });
+
+      document.getElementById('modalBackdrop').addEventListener('click', e => {
+        if (e.target.id === 'modalBackdrop') {
+          closeAllModals();
+        }
+      });
+
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeAllModals();
+      });
+
+      // Initial Boot
+      window.addEventListener('DOMContentLoaded', renderAll);
+    })();
+  </script>
+</body>
+</html>
